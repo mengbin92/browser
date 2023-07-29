@@ -1,0 +1,2 @@
+# browser
+fabric block browser
