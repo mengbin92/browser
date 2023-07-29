@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package browser.conf;
+
+option go_package = "./;conf";
+
+import "google/protobuf/duration.proto";
+
+message Bootstrap {
+  Server server = 1;
+  Log log = 2;
+}
+
+message Server {
+  message HTTP {
+    string network = 1;
+    string addr = 2;
+    google.protobuf.Duration timeout = 3;
+  }
+  message TLS {
+    // 是否启用tls
+    bool enbale = 1;
+    // 证书路径
+    string cert = 2;
+    // 对应私钥路径
+    string key = 3;
+  }
+  HTTP http = 1;
+  TLS tls = 2;
+}
+
+message Log { int32 level = 1; }
