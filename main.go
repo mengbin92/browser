@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
-	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/middleware/tracing"
 	"github.com/mengbin92/browser/conf"
+	"github.com/mengbin92/browser/log"
 	"github.com/mengbin92/browser/service"
 )
 
@@ -23,15 +24,6 @@ func init() {
 
 func main() {
 	flag.Parse()
-	logger := log.With(log.NewStdLogger(os.Stdout),
-		"ts", log.DefaultTimestamp,
-		"caller", log.DefaultCaller,
-		"service.id", id,
-		"service.name", "gin-blockchain-browser",
-		"service.version", "1.0.0.",
-		"trace.id", tracing.TraceID(),
-		"span.id", tracing.SpanID(),
-	)
 
 	c := config.New(
 		config.WithSource(
@@ -48,9 +40,16 @@ func main() {
 		panic(err)
 	}
 
-	service.NewServer(bc.Server, logger)
+	logger := log.DefaultLogger(bc.Log)
+	service.NewServer(bc.Server, logger.Sugar())
 
 	if err := service.Run(); err != nil {
 		panic(err)
 	}
+
+	quit := make(chan os.Signal)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	service.Shutdown()
+	logger.Info("Shutdown server")
 }

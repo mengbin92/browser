@@ -29,4 +29,7 @@ message Server {
   TLS tls = 2;
 }
 
-message Log { int32 level = 1; }
+message Log {
+  int32 level = 1;
+  string format = 2;
+}
