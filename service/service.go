@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/mengbin92/browser/conf"
 	"go.uber.org/zap"
@@ -20,8 +22,13 @@ func NewServer(conf *conf.Server, logger *zap.SugaredLogger) {
 
 	engine := gin.Default()
 
+	// using cookie store session
+	store := cookie.NewStore([]byte("secret"))
+	engine.Use(sessions.Sessions("pbFile", store))
+
 	engine.GET("/hi/:name", sayHi)
-	engine.POST("/block/parse", parseBlock)
+	engine.POST("/block/upload", upload)
+	engine.GET("/block/parse/:msgType", parse)
 
 	server = &http.Server{
 		Addr:    conf.Http.Addr,
