@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -18,9 +19,16 @@ import (
 func upload(ctx *gin.Context) {
 	// new session
 	session := sessions.Default(ctx)
-	pbFile := uuid.NewString()
-	session.Set("filename", pbFile)
+	uid := uuid.NewString()
+	pf := &pbFile{
+		Name:    uid,
+		Expired: time.Now().Add(300 * time.Second).Unix(),
+	}
+	buf, _ := pf.Marshal()
+	session.Set("filename", string(buf))
 	session.Save()
+
+	pbcache.cache.Store(uid, pf)
 
 	file, _, err := ctx.Request.FormFile("file")
 	if err != nil {
@@ -30,32 +38,15 @@ func upload(ctx *gin.Context) {
 	}
 	defer file.Close()
 
-	out, err := os.Create(utils.Fullname(pbFile))
+	out, err := os.Create(utils.Fullname(uid))
 	if err != nil {
-		srvLogger.Errorf("create file: %s.pb error: %s", pbFile, err.Error())
-		ctx.JSON(http.StatusInternalServerError, gin.H{"msg": fmt.Sprintf("create file: %s.pb error: %s", pbFile, err.Error()), "code": http.StatusInternalServerError})
+		srvLogger.Errorf("create file: %s.pb error: %s", uid, err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"msg": fmt.Sprintf("create file: %s.pb error: %s", uid, err.Error()), "code": http.StatusInternalServerError})
 		return
 	}
 	io.Copy(out, file)
 
 	ctx.JSON(http.StatusCreated, gin.H{"msg": "upload file success", "code": http.StatusCreated})
-
-	// cb := &common.Block{}
-	// err = proto.Unmarshal(buf.Bytes(), cb)
-	// if err != nil {
-	// 	srvLogger.Errorf("Parse block error: %s", err.Error())
-	// 	ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block error: %s", err.Error()), "code": http.StatusInternalServerError})
-	// 	return
-	// }
-
-	// err = protolator.DeepMarshalJSON(buf, cb)
-	// if err != nil {
-	// 	srvLogger.Errorf("marshaler protobuf to json error: %s", err.Error())
-	// 	ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("marshaler protobuf to json error: %s", err.Error()), "code": http.StatusInternalServerError})
-	// 	return
-	// }
-
-	// ctx.JSON(http.StatusCreated, gin.H{"code": http.StatusCreated, "msg": buf.String()})
 }
 
 func sayHi(ctx *gin.Context) {
@@ -72,18 +63,27 @@ func parse(ctx *gin.Context) {
 
 	// get filename from session
 	session := sessions.Default(ctx)
-	pbFile := session.Get("filename")
-	if pbFile == nil {
+	buf := session.Get("filename")
+	if buf == nil {
 		srvLogger.Error("no filename in session")
 		ctx.JSON(http.StatusBadRequest, gin.H{"msg": "no filename in session", "code": http.StatusBadRequest})
 		return
 	}
 
+	// 更新pbFile过期时间
+	pf := &pbFile{}
+	pf.Unmarshal([]byte(buf.(string)))
+	pf.renewal()
+
+	data, _ := pf.Marshal()
+	session.Set("filename", string(data))
+	session.Save()
+
 	msgType := ctx.Param("msgType")
-	in, err := os.ReadFile(utils.Fullname(pbFile.(string)))
+	in, err := os.ReadFile(utils.Fullname(pf.Name))
 	if err != nil {
-		srvLogger.Errorf("read file: %s.pb error: %s", pbFile, err.Error())
-		ctx.JSON(http.StatusInternalServerError, gin.H{"msg": fmt.Sprintf("read file: %s error: %s", pbFile, err.Error()), "code": http.StatusBadRequest})
+		srvLogger.Errorf("read file: %s.pb error: %s", pf.Name, err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"msg": fmt.Sprintf("read file: %s error: %s", pf.Name, err.Error()), "code": http.StatusBadRequest})
 		return
 	}
 

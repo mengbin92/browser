@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -15,7 +16,17 @@ import (
 var (
 	srvLogger *zap.SugaredLogger
 	server    *http.Server
+	pbcache   *pbCache
 )
+
+func init() {
+	pbcache = &pbCache{
+		cache: sync.Map{},
+		time:  time.NewTicker(300 * time.Second),
+	}
+
+	go pbcache.checkExpiredTokenTimer()
+}
 
 func NewServer(conf *conf.Server, logger *zap.SugaredLogger) {
 	srvLogger = logger
