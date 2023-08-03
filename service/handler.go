@@ -94,6 +94,19 @@ func parse(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block error: %s", err.Error()), "code": http.StatusInternalServerError})
 		return
 	}
+	env := &common.Envelope{}
+	if err := proto.Unmarshal(cb.Data.Data[0], env); err != nil {
+		srvLogger.Errorf("Parse block data error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block data error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+	payload := &common.Payload{}
+	if err := proto.Unmarshal(env.Payload, payload); err != nil {
+		srvLogger.Errorf("Parse block Payload error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block Payload error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+
 	switch msgType {
 	case "block":
 		resp = cb
@@ -103,6 +116,94 @@ func parse(ctx *gin.Context) {
 		resp = cb.Metadata
 	case "data":
 		resp = cb.Data
+	case "config":
+		resp, err = utils.GetConfigEnvelope(payload.Data)
+		if err != nil {
+			srvLogger.Errorf("Parse block ConfigEnvelope error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block ConfigEnvelope error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+	case "chaincode":
+		resp, err = utils.GetChaincodeHeaderExtension(payload.Header)
+		if err != nil {
+			srvLogger.Errorf("Parse block ChaincodeHeaderExtension error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block ChaincodeHeaderExtension error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+	case "actions":
+	case "transaction":
+		resp, err = utils.GetTransaction(payload.Data)
+		if err != nil {
+			srvLogger.Errorf("Parse block Transaction error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block Transaction error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+	case "input":
+		chaincodeProposalPayload, _, _, err := utils.ParseChaincodeEnvelope(env)
+		if err != nil {
+			srvLogger.Errorf("Parse block ChaincodeInvocationSpec error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block ChaincodeInvocationSpec error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+		resp,err = utils.GetChaincodeInvocationSpec(chaincodeProposalPayload.Input)
+		if err != nil {
+			srvLogger.Errorf("Parse block ChaincodeInvocationSpec input error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block ChaincodeInvocationSpec input error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+	case "rwset":
+		_,_,chaincodeAction, err := utils.ParseChaincodeEnvelope(env)
+		if err != nil {
+			srvLogger.Errorf("Parse block ChaincodeAction error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block ChaincodeAction error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+		resp,err = utils.GetRWSet(chaincodeAction)
+		if err != nil {
+			srvLogger.Errorf("Parse block TxReadWriteSet error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block TxReadWriteSet error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+	case "endorsements":
+		_, endorsements, _, err := utils.ParseChaincodeEnvelope(env)
+		if err != nil {
+			srvLogger.Errorf("Parse block Endorsement error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block Endorsement error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+		endors := make([]*Endorser, len(endorsements))
+		for _, e := range endorsements {
+			identity, err := getIdentity(e.Endorser)
+			if err != nil {
+				if err != nil {
+					srvLogger.Errorf("Parse Identity error: %s", err.Error())
+					ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse Identity error: %s", err.Error()), "code": http.StatusInternalServerError})
+					return
+				}
+			}
+			userName := ""
+			if identity.Cert != nil {
+				userName = identity.Cert.Subject.CommonName
+			}
+			endors = append(endors, &Endorser{MSP: identity.Mspid, Name: userName})
+		}
+		ctx.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "msg": endors})
+		return
+	case "creator":
+		shdr, err := utils.GetSignatureHeader(payload.Header.SignatureHeader)
+		if err != nil {
+			srvLogger.Errorf("Parse block SignatureHeader error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block SignatureHeader error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+		creator, err := getIdentity(shdr.Creator)
+		if err != nil {
+			srvLogger.Errorf("Parse block Creator error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block Creator error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+		ctx.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "msg": creator})
+		return
 	default:
 		ctx.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "msg": fmt.Sprintf("unknow msgType: %s", msgType)})
 		return

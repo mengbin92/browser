@@ -3,6 +3,7 @@ package utils
 import (
 	"github.com/golang/protobuf/proto"
 	"github.com/hyperledger/fabric-protos-go/common"
+	"github.com/hyperledger/fabric-protos-go/ledger/rwset"
 	"github.com/hyperledger/fabric-protos-go/peer"
 	"github.com/pkg/errors"
 )
@@ -107,6 +108,65 @@ func GetPayloads(txActions *peer.TransactionAction) (*peer.ChaincodeActionPayloa
 // GetChaincodeProposalPayload Get ChaincodeProposalPayload from bytes
 func GetChaincodeProposalPayload(bytes []byte) (*peer.ChaincodeProposalPayload, error) {
 	cpp := &peer.ChaincodeProposalPayload{}
-	err := proto.Unmarshal(bytes, cpp)
-	return cpp, errors.Wrap(err, "error unmarshaling ChaincodeProposalPayload")
+	if err := proto.Unmarshal(bytes, cpp); err != nil {
+		return cpp, errors.Wrap(err, "error unmarshaling ChaincodeProposalPayload")
+	}
+	return cpp, nil
+}
+
+func GetConfigEnvelope(bytes []byte) (*common.ConfigEnvelope, error) {
+	ce := &common.ConfigEnvelope{}
+	if err := proto.Unmarshal(bytes, ce); err != nil {
+		return ce, errors.Wrap(err, "error unmarshaling ConfigEnvelope")
+	}
+	return ce, nil
+}
+
+// parse Chaincode Envelope
+func ParseChaincodeEnvelope(env *common.Envelope) (*peer.ChaincodeProposalPayload, []*peer.Endorsement, *peer.ChaincodeAction, error) {
+	payl, err := GetPayload(env)
+	if err != nil {
+
+		return nil, nil, nil, err
+	}
+
+	tx, err := GetTransaction(payl.Data)
+	if err != nil {
+		return nil, nil, nil, errors.Wrap(err, "GetTransaction from payload error")
+	}
+
+	if len(tx.Actions) == 0 {
+		return nil, nil, nil, errors.Wrap(err, "At least one TransactionAction is required")
+	}
+
+	actionPayload, chaincodeAction, err := GetPayloads(tx.Actions[0])
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	chaincodeProposalPayload, err := GetChaincodeProposalPayload(actionPayload.ChaincodeProposalPayload)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	return chaincodeProposalPayload, actionPayload.Action.Endorsements, chaincodeAction, nil
+}
+
+func GetChaincodeInvocationSpec(bytes []byte) (*peer.ChaincodeInvocationSpec, error) {
+	cis := &peer.ChaincodeInvocationSpec{}
+	if err := proto.Unmarshal(bytes, cis); err != nil {
+		return cis, errors.Wrap(err, "error unmarshaling ChaincodeInvocationSpec")
+	}
+	return cis, nil
+}
+
+func GetRWSet(action *peer.ChaincodeAction) (*rwset.TxReadWriteSet, error) {
+	resultBytes := action.GetResults()
+
+	txRWSet := &rwset.TxReadWriteSet{}
+	err := proto.Unmarshal(resultBytes, txRWSet)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unmarshal TxReadWriteSet error")
+	}
+	return txRWSet, nil
 }
