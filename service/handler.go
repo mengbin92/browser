@@ -209,33 +209,7 @@ func parse(ctx *gin.Context) {
 }
 
 func updateConfig(ctx *gin.Context) {
-
-	name, err := loadSession(ctx)
-	if err != nil {
-		srvLogger.Error("no filename in session")
-		ctx.JSON(http.StatusBadRequest, gin.H{"msg": "no filename in session", "code": http.StatusBadRequest})
-		return
-	}
-	env, err := loadEnvelop(name)
-	if err != nil {
-		srvLogger.Errorf("Parse block Envelop error: %s", err.Error())
-		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block Envelop error: %s", err.Error()), "code": http.StatusInternalServerError})
-		return
-	}
-
-	payload := &common.Payload{}
-	if err := proto.Unmarshal(env.Payload, payload); err != nil {
-		srvLogger.Errorf("Parse block Payload error: %s", err.Error())
-		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block Payload error: %s", err.Error()), "code": http.StatusInternalServerError})
-		return
-	}
-
-	resp, err := utils.UnmarshalChannelHeader(payload.Header.ChannelHeader)
-	if err != nil {
-		srvLogger.Errorf("Parse block UnmarshalChannelHeader error: %s", err.Error())
-		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block UnmarshalChannelHeader error: %s", err.Error()), "code": http.StatusInternalServerError})
-		return
-	}
+	channel := ctx.Param("channel")
 
 	file, _, err := ctx.Request.FormFile("file")
 	if err != nil {
@@ -253,7 +227,7 @@ func updateConfig(ctx *gin.Context) {
 	}
 
 	configUpdate := &common.ConfigUpdate{
-		ChannelId: resp.ChannelId,
+		ChannelId: channel,
 		ReadSet:   config.ChannelGroup,
 		WriteSet:  config.ChannelGroup,
 	}
@@ -273,21 +247,6 @@ func updateConfig(ctx *gin.Context) {
 	if err != nil {
 		srvLogger.Errorf("Marshal ConfigUpdate error: %s", err.Error())
 		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Marshal ConfigUpdate error: %s", err.Error()), "code": http.StatusInternalServerError})
-		return
-	}
-	payload.Data = buf
-	buf, err = proto.Marshal(payload)
-	if err != nil {
-		srvLogger.Errorf("Marshal payload after update config error: %s", err.Error())
-		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Marshal payload after update config error: %s", err.Error()), "code": http.StatusInternalServerError})
-		return
-	}
-
-	env.Payload = buf
-	buf, err = proto.Marshal(payload)
-	if err != nil {
-		srvLogger.Errorf("Marshal Envelop after update config error: %s", err.Error())
-		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Marshal Envelop after update config error: %s", err.Error()), "code": http.StatusInternalServerError})
 		return
 	}
 
