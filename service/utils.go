@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-gonic/gin"
 	"github.com/golang/protobuf/proto"
+	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/hyperledger/fabric-protos-go/msp"
 	"github.com/mengbin92/browser/utils"
 	"github.com/pkg/errors"
@@ -92,4 +95,48 @@ func decodeX509Pem(certPem []byte) (*x509.Certificate, error) {
 type Endorser struct {
 	MSP  string `json:"msp"`
 	Name string `json:"name"`
+}
+
+func marshalProtoMessage(pb proto.Message) ([]byte, error) {
+	return proto.Marshal(pb)
+}
+
+func loadEnvelop(name string) (*common.Envelope, error) {
+	in, err := os.ReadFile(utils.Fullname(name))
+	if err != nil {
+		srvLogger.Errorf("read file: %s.pb error: %s", name, err.Error())
+		return nil, errors.Wrapf(err, "read file: %s", name)
+	}
+
+	cb := &common.Block{}
+	if err := proto.Unmarshal(in, cb); err != nil {
+		srvLogger.Errorf("Parse block error: %s", err.Error())
+		return nil, errors.Wrap(err, "Parse block error")
+	}
+	env := &common.Envelope{}
+	if err := proto.Unmarshal(cb.Data.Data[0], env); err != nil {
+		srvLogger.Errorf("Parse block data error: %s", err.Error())
+		return nil, errors.Wrap(err, "Parse block data error")
+	}
+	return env, nil
+}
+
+func loadSession(ctx *gin.Context) (string, error) {
+	// get filename from session
+	session := sessions.Default(ctx)
+	buf := session.Get("filename")
+	if buf == nil {
+		srvLogger.Error("no filename in session")
+		return "", errors.New("no filename in session")
+	}
+
+	// 更新pbFile过期时间
+	pf := &pbFile{}
+	pf.Unmarshal([]byte(buf.(string)))
+	pf.renewal()
+
+	data, _ := pf.Marshal()
+	session.Set("filename", string(data))
+	session.Save()
+	return pf.Name, nil
 }

@@ -40,6 +40,7 @@ func NewServer(conf *conf.Server, logger *zap.SugaredLogger) {
 	engine.GET("/hi/:name", sayHi)
 	engine.POST("/block/upload", upload)
 	engine.GET("/block/parse/:msgType", parse)
+	engine.POST("/block/update", updateConfig)
 
 	server = &http.Server{
 		Addr:    conf.Http.Addr,

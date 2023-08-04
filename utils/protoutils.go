@@ -108,18 +108,14 @@ func GetPayloads(txActions *peer.TransactionAction) (*peer.ChaincodeActionPayloa
 // GetChaincodeProposalPayload Get ChaincodeProposalPayload from bytes
 func GetChaincodeProposalPayload(bytes []byte) (*peer.ChaincodeProposalPayload, error) {
 	cpp := &peer.ChaincodeProposalPayload{}
-	if err := proto.Unmarshal(bytes, cpp); err != nil {
-		return cpp, errors.Wrap(err, "error unmarshaling ChaincodeProposalPayload")
-	}
-	return cpp, nil
+	err := proto.Unmarshal(bytes, cpp)
+	return cpp, errors.Wrap(err, "error unmarshaling ChaincodeProposalPayload")
 }
 
 func GetConfigEnvelope(bytes []byte) (*common.ConfigEnvelope, error) {
 	ce := &common.ConfigEnvelope{}
-	if err := proto.Unmarshal(bytes, ce); err != nil {
-		return ce, errors.Wrap(err, "error unmarshaling ConfigEnvelope")
-	}
-	return ce, nil
+	err := proto.Unmarshal(bytes, ce)
+	return ce, errors.Wrap(err, "error unmarshaling ConfigEnvelope")
 }
 
 // parse Chaincode Envelope

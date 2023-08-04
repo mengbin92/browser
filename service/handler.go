@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
+	"github.com/hyperledger/fabric-config/protolator"
 	"github.com/hyperledger/fabric-protos-go/common"
 	"github.com/mengbin92/browser/utils"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -61,29 +62,17 @@ func sayHi(ctx *gin.Context) {
 
 func parse(ctx *gin.Context) {
 
-	// get filename from session
-	session := sessions.Default(ctx)
-	buf := session.Get("filename")
-	if buf == nil {
+	msgType := ctx.Param("msgType")
+	name, err := loadSession(ctx)
+	if err != nil {
 		srvLogger.Error("no filename in session")
 		ctx.JSON(http.StatusBadRequest, gin.H{"msg": "no filename in session", "code": http.StatusBadRequest})
 		return
 	}
-
-	// 更新pbFile过期时间
-	pf := &pbFile{}
-	pf.Unmarshal([]byte(buf.(string)))
-	pf.renewal()
-
-	data, _ := pf.Marshal()
-	session.Set("filename", string(data))
-	session.Save()
-
-	msgType := ctx.Param("msgType")
-	in, err := os.ReadFile(utils.Fullname(pf.Name))
+	in, err := os.ReadFile(utils.Fullname(name))
 	if err != nil {
-		srvLogger.Errorf("read file: %s.pb error: %s", pf.Name, err.Error())
-		ctx.JSON(http.StatusInternalServerError, gin.H{"msg": fmt.Sprintf("read file: %s error: %s", pf.Name, err.Error()), "code": http.StatusBadRequest})
+		srvLogger.Errorf("read file: %s.pb error: %s", name, err.Error())
+		ctx.JSON(http.StatusInternalServerError, gin.H{"msg": fmt.Sprintf("read file: %s error: %s", name, err.Error()), "code": http.StatusBadRequest})
 		return
 	}
 
@@ -145,23 +134,30 @@ func parse(ctx *gin.Context) {
 			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block ChaincodeInvocationSpec error: %s", err.Error()), "code": http.StatusInternalServerError})
 			return
 		}
-		resp,err = utils.GetChaincodeInvocationSpec(chaincodeProposalPayload.Input)
+		resp, err = utils.GetChaincodeInvocationSpec(chaincodeProposalPayload.Input)
 		if err != nil {
 			srvLogger.Errorf("Parse block ChaincodeInvocationSpec input error: %s", err.Error())
 			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block ChaincodeInvocationSpec input error: %s", err.Error()), "code": http.StatusInternalServerError})
 			return
 		}
 	case "rwset":
-		_,_,chaincodeAction, err := utils.ParseChaincodeEnvelope(env)
+		_, _, chaincodeAction, err := utils.ParseChaincodeEnvelope(env)
 		if err != nil {
 			srvLogger.Errorf("Parse block ChaincodeAction error: %s", err.Error())
 			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block ChaincodeAction error: %s", err.Error()), "code": http.StatusInternalServerError})
 			return
 		}
-		resp,err = utils.GetRWSet(chaincodeAction)
+		resp, err = utils.GetRWSet(chaincodeAction)
 		if err != nil {
 			srvLogger.Errorf("Parse block TxReadWriteSet error: %s", err.Error())
 			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block TxReadWriteSet error: %s", err.Error()), "code": http.StatusInternalServerError})
+			return
+		}
+	case "channel":
+		resp, err = utils.UnmarshalChannelHeader(payload.Header.ChannelHeader)
+		if err != nil {
+			srvLogger.Errorf("Parse block UnmarshalChannelHeader error: %s", err.Error())
+			ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block UnmarshalChannelHeader error: %s", err.Error()), "code": http.StatusInternalServerError})
 			return
 		}
 	case "endorsements":
@@ -204,9 +200,99 @@ func parse(ctx *gin.Context) {
 		}
 		ctx.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "msg": creator})
 		return
+
 	default:
 		ctx.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "msg": fmt.Sprintf("unknow msgType: %s", msgType)})
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "msg": resp})
+}
+
+func updateConfig(ctx *gin.Context) {
+
+	name, err := loadSession(ctx)
+	if err != nil {
+		srvLogger.Error("no filename in session")
+		ctx.JSON(http.StatusBadRequest, gin.H{"msg": "no filename in session", "code": http.StatusBadRequest})
+		return
+	}
+	env, err := loadEnvelop(name)
+	if err != nil {
+		srvLogger.Errorf("Parse block Envelop error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block Envelop error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+
+	payload := &common.Payload{}
+	if err := proto.Unmarshal(env.Payload, payload); err != nil {
+		srvLogger.Errorf("Parse block Payload error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block Payload error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+
+	resp, err := utils.UnmarshalChannelHeader(payload.Header.ChannelHeader)
+	if err != nil {
+		srvLogger.Errorf("Parse block UnmarshalChannelHeader error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Parse block UnmarshalChannelHeader error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+
+	file, _, err := ctx.Request.FormFile("file")
+	if err != nil {
+		srvLogger.Errorf("FormFile error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("FormFile error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+	defer file.Close()
+
+	config := &common.Config{}
+	if err := protolator.DeepUnmarshalJSON(file, config); err != nil {
+		srvLogger.Errorf("DeepUnmarshalJSON Config error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("DeepUnmarshalJSON Config error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+
+	configUpdate := &common.ConfigUpdate{
+		ChannelId: resp.ChannelId,
+		ReadSet:   config.ChannelGroup,
+		WriteSet:  config.ChannelGroup,
+	}
+
+	buf, err := proto.Marshal(configUpdate)
+	if err != nil {
+		srvLogger.Errorf("Marshal ConfigUpdate error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Marshal ConfigUpdate error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+
+	configUpdateEnvelope := &common.ConfigUpdateEnvelope{
+		ConfigUpdate: buf,
+	}
+
+	buf, err = proto.Marshal(configUpdateEnvelope)
+	if err != nil {
+		srvLogger.Errorf("Marshal ConfigUpdate error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Marshal ConfigUpdate error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+	payload.Data = buf
+	buf, err = proto.Marshal(payload)
+	if err != nil {
+		srvLogger.Errorf("Marshal payload after update config error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Marshal payload after update config error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+
+	env.Payload = buf
+	buf, err = proto.Marshal(payload)
+	if err != nil {
+		srvLogger.Errorf("Marshal Envelop after update config error: %s", err.Error())
+		ctx.JSON(http.StatusOK, gin.H{"msg": fmt.Sprintf("Marshal Envelop after update config error: %s", err.Error()), "code": http.StatusInternalServerError})
+		return
+	}
+
+	ctx.Header("Content-Type", "application/octet-stream")
+	ctx.Header("Content-Disposition", "attachment; filename=modified_config_block.pb")
+	ctx.Header("Content-Transfer-Encoding", "binary")
+	ctx.Data(http.StatusOK, "application/octet-stream", buf)
 }
