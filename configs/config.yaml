@@ -2,11 +2,14 @@ server:
   http:
     addr: 0.0.0.0:8000
     timeout: 1s
-  tls:
-    enable: false
-    cert: xxxx/xxx.cert
-    key: xxx/xxxx/xx.key
-
-log:
-  # 支持debug(-1)、info(0)、warn(1)、error(2)、dpanic(3)、panic(4)、fatal(5)
-  level: 2
+  grpc:
+    addr: 0.0.0.0:9000
+    timeout: 1s
+data:
+  database:
+    driver: mysql
+    source: root:root@tcp(127.0.0.1:3306)/test
+  redis:
+    addr: 127.0.0.1:6379
+    read_timeout: 0.2s
+    write_timeout: 0.2s
