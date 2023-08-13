@@ -18,7 +18,9 @@ import (
 )
 
 type pbCache struct {
+	// 缓存session
 	cache sync.Map
+	// 定时器，超时后自动删除对应的pb文件
 	time  *time.Ticker
 }
 
@@ -37,7 +39,9 @@ func (p *pbCache) checkExpiredTokenTimer() {
 }
 
 type pbFile struct {
+	// pb文件名称，文件存储在服务端的名称
 	Name    string
+	// 文件过期时间，过期后自动删除
 	Expired int64
 }
 
