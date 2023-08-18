@@ -31,6 +31,22 @@ func login(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "data": resp})
 }
 
+func register(ctx *gin.Context) {
+	login := &Login{}
+	if err := ctx.Bind(login); err != nil {
+		srvLogger.Errorf("Binding Login info error: %s\n", err.Error())
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	resp, err := data.RegisterUser(login.Name, login.Password)
+	if err != nil {
+		srvLogger.Errorf("register user: %s error: %s", login.Name, err.Error())
+		ctx.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "msg": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "data": resp})
+}
+
 func noAuth(ctx *gin.Context) {
 	ctx.Next()
 }

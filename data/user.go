@@ -62,14 +62,35 @@ func genSalt() string {
 	return uid.String()
 }
 
-func RegisterUser(name, password string) error {
+func RegisterUser(name, password string) (*LoginResponse, error) {
 	salt := genSalt()
 	u := &User{
 		Name:     name,
 		Password: utils.CalcPassword(password, salt),
 		Salt:     salt,
 	}
-	return db.Get().Save(u).Error
+	if err := db.Get().Save(u).Error; err != nil {
+		return nil, errors.Wrap(err, "RegisterUser error")
+	}
+
+	now := time.Now()
+	claims := &jwtv5.RegisteredClaims{
+		ExpiresAt: jwtv5.NewNumericDate(now.Add(30 * time.Minute)),
+		Issuer:    "browser",
+		Subject:   fmt.Sprintf("%d", u.ID),
+	}
+	token := jwtv5.NewWithClaims(jwtv5.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(securityKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "create token error")
+	}
+
+	return &LoginResponse{
+		Token:    tokenString,
+		Expire:   now.Add(30 * time.Minute).Unix(),
+		ID:       u.ID,
+		Username: u.Name,
+	}, nil
 }
 
 func Login(name, password string) (*LoginResponse, error) {
