@@ -15,7 +15,7 @@ import (
 
 var (
 	srvLogger *zap.SugaredLogger
-	server    *http.Server
+	server    *Server
 	pbcache   *pbCache
 )
 
@@ -28,8 +28,45 @@ func init() {
 	go pbcache.checkExpiredTokenTimer()
 }
 
+type Server struct {
+	srv *http.Server
+}
+
+func (s *Server) Routers() []*Router {
+	return []*Router{
+		{
+			Path:     "/login",
+			Method:   http.MethodPost,
+			AuthType: config.Server_NOAUTH,
+			Handler:  login,
+		},
+		{
+			Path:     "/hi/:name",
+			Method:   http.MethodGet,
+			AuthType: config.Server_NOAUTH,
+			Handler:  sayHi,
+		},
+		{
+			Path:    "/block/upload",
+			Method:  http.MethodPost,
+			Handler: upload,
+		},
+		{
+			Path:    "/block/parse/:msgType",
+			Method:  http.MethodGet,
+			Handler: parse,
+		},
+		{
+			Path:    "/block/update/:channel",
+			Method:  http.MethodPost,
+			Handler: updateConfig,
+		},
+	}
+}
+
 func NewServer(conf *config.Server, logger *zap.SugaredLogger) {
 	srvLogger = logger
+	server = &Server{}
 
 	engine := gin.Default()
 
@@ -37,37 +74,44 @@ func NewServer(conf *config.Server, logger *zap.SugaredLogger) {
 	store := cookie.NewStore([]byte("secret"))
 	engine.Use(sessions.Sessions("pbFile", store))
 
-	engine.POST("/login", login)
-	engine.GET("/hi/:name", sayHi)
+	// engine.POST("/login", login)
+	// engine.GET("/hi/:name", sayHi)
+	// engine.POST("/block/upload", upload)
+	// engine.GET("/block/parse/:msgType", parse)
+	// engine.POST("/block/update/:channel", updateConfig)
 
 	var handlers []gin.HandlerFunc
-
-	switch conf.AuthType {
-	case config.Server_BASICAUTH:
-		handlers = append(handlers, basicAuth)
-	case config.Server_TOKENAUTH:
-		handlers = append(handlers, tokenAuth)
-	default:
-		handlers = append(handlers, noAuth)
+	for _, router := range server.Routers() {
+		if router.AuthType == 0 {
+			router.AuthType = conf.AuthType
+		}
+		switch router.AuthType {
+		case config.Server_BASICAUTH:
+			handlers = append(handlers, basicAuth)
+		case config.Server_TOKENAUTH:
+			handlers = append(handlers, tokenAuth)
+		default:
+			handlers = append(handlers, noAuth)
+		}
+		handlers = append(handlers, router.Handler)
+		engine.Handle(router.Method, router.Path, handlers...)
 	}
 
-	engine.POST("/block/upload", []gin.HandlerFunc{handlers[0], upload}...)
-	engine.GET("/block/parse/:msgType", []gin.HandlerFunc{handlers[0], parse}...)
-	engine.POST("/block/update/:channel", []gin.HandlerFunc{handlers[0], updateConfig}...)
-
-	server = &http.Server{
-		Addr:    conf.Http.Addr,
-		Handler: engine,
+	server.srv = &http.Server{
+		Addr:         conf.Http.Addr,
+		Handler:      engine,
+		ReadTimeout:  conf.Http.Timeout.AsDuration(),
+		WriteTimeout: conf.Http.Timeout.AsDuration(),
 	}
 }
 
 func Run() error {
-	return server.ListenAndServe()
+	return server.srv.ListenAndServe()
 }
 
 func Shutdown() {
 	srvLogger.Info("shutdown service")
 	ctx, cancle := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancle()
-	server.Shutdown(ctx)
+	server.srv.Shutdown(ctx)
 }
