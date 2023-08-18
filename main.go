@@ -9,6 +9,7 @@ import (
 	"github.com/go-kratos/kratos/v2/config"
 	"github.com/go-kratos/kratos/v2/config/file"
 	"github.com/mengbin92/browser/conf"
+	"github.com/mengbin92/browser/data"
 	"github.com/mengbin92/browser/log"
 	"github.com/mengbin92/browser/service"
 )
@@ -42,6 +43,7 @@ func main() {
 
 	logger := log.DefaultLogger(bc.Log)
 	service.NewServer(bc.Server, logger.Sugar())
+	data.InitData(bc.Data, log.NewZapLogger(bc.Log))
 
 	if err := service.Run(); err != nil {
 		panic(err)

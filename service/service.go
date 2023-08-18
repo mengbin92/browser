@@ -86,8 +86,8 @@ func NewServer(conf *config.Server, logger *zap.SugaredLogger) {
 	// engine.GET("/block/parse/:msgType", parse)
 	// engine.POST("/block/update/:channel", updateConfig)
 
-	var handlers []gin.HandlerFunc
 	for _, router := range server.Routers() {
+		var handlers []gin.HandlerFunc
 		if router.AuthType == 0 {
 			router.AuthType = conf.AuthType
 		}

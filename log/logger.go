@@ -1,8 +1,10 @@
 package log
 
 import (
+	"fmt"
 	"os"
 
+	"github.com/go-kratos/kratos/v2/log"
 	"github.com/mengbin92/browser/conf"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -70,4 +72,28 @@ func setLogLevel(log *zap.Logger, level int32) *zap.Logger {
 	default:
 		return log.WithOptions(zap.IncreaseLevel(zapcore.ErrorLevel))
 	}
+}
+
+// Log Implementation of logger interface.
+func (l *ZapLogger) Log(level log.Level, keyvals ...interface{}) error {
+	if len(keyvals) == 0 || len(keyvals)%2 != 0 {
+		l.log.Warn(fmt.Sprint("Keyvalues must appear in pairs: ", keyvals))
+		return nil
+	}
+	// Zap.Field is used when keyvals pairs appear
+	var data []zap.Field
+	for i := 0; i < len(keyvals); i += 2 {
+		data = append(data, zap.Any(fmt.Sprint(keyvals[i]), fmt.Sprint(keyvals[i+1])))
+	}
+	switch level {
+	case log.LevelDebug:
+		l.log.Debug("", data...)
+	case log.LevelInfo:
+		l.log.Info("", data...)
+	case log.LevelWarn:
+		l.log.Warn("", data...)
+	case log.LevelError:
+		l.log.Error("", data...)
+	}
+	return nil
 }

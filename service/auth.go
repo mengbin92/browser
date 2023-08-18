@@ -10,8 +10,8 @@ import (
 )
 
 type Login struct {
-	Name     string
-	Password string
+	Name     string `form:"name"`
+	Password string	`form:"password"`
 }
 
 func login(ctx *gin.Context) {
