@@ -9,7 +9,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
-	"github.com/mengbin92/browser/conf"
+	config "github.com/mengbin92/browser/conf"
 	"go.uber.org/zap"
 )
 
@@ -28,7 +28,7 @@ func init() {
 	go pbcache.checkExpiredTokenTimer()
 }
 
-func NewServer(conf *conf.Server, logger *zap.SugaredLogger) {
+func NewServer(conf *config.Server, logger *zap.SugaredLogger) {
 	srvLogger = logger
 
 	engine := gin.Default()
@@ -37,10 +37,23 @@ func NewServer(conf *conf.Server, logger *zap.SugaredLogger) {
 	store := cookie.NewStore([]byte("secret"))
 	engine.Use(sessions.Sessions("pbFile", store))
 
+	engine.POST("/login", login)
 	engine.GET("/hi/:name", sayHi)
-	engine.POST("/block/upload", upload)
-	engine.GET("/block/parse/:msgType", parse)
-	engine.POST("/block/update/:channel", updateConfig)
+
+	var handlers []gin.HandlerFunc
+
+	switch conf.AuthType {
+	case config.Server_BASICAUTH:
+		handlers = append(handlers, basicAuth)
+	case config.Server_TOKENAUTH:
+		handlers = append(handlers, tokenAuth)
+	default:
+		handlers = append(handlers, noAuth)
+	}
+
+	engine.POST("/block/upload", []gin.HandlerFunc{handlers[0], upload}...)
+	engine.GET("/block/parse/:msgType", []gin.HandlerFunc{handlers[0], parse}...)
+	engine.POST("/block/update/:channel", []gin.HandlerFunc{handlers[0], updateConfig}...)
 
 	server = &http.Server{
 		Addr:    conf.Http.Addr,

@@ -8,6 +8,17 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+type ZapLogger struct {
+	log  *zap.Logger
+	Sync func() error
+}
+
+// NewZapLogger return a zap logger.
+func NewZapLogger(logConf *conf.Log) *ZapLogger {
+	zapLogger := DefaultLogger(logConf)
+	return &ZapLogger{log: zapLogger, Sync: zapLogger.Sync}
+}
+
 // DefaultLogger,stdout
 func DefaultLogger(logConf *conf.Log) *zap.Logger {
 	var coreArr []zapcore.Core

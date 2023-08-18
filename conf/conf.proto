@@ -9,6 +9,7 @@ import "google/protobuf/duration.proto";
 message Bootstrap {
   Server server = 1;
   Log log = 2;
+  Data data = 3;
 }
 
 message Server {
@@ -25,8 +26,15 @@ message Server {
     // 对应私钥路径
     string key = 3;
   }
+  enum AuthType{
+    TOKENAUTH = 0;
+    BASICAUTH = 1;
+    NOAUTH = 2;
+  }
   HTTP http = 1;
   TLS tls = 2;
+  // 2: no auth; 1: basic auth; default: 0, token auth
+  AuthType auth_type = 3;
 }
 
 message Log {
@@ -35,4 +43,30 @@ message Log {
   int32 level = 1;
   // 日志输出格式，支持json or console
   string format = 2;
+}
+
+message Database {
+  // 数据库类型：mysql、sqlite3、postgres
+  string driver = 1;
+  string source = 2;
+  // 最大空闲连接数
+  int64 max_idle_conn = 3;
+  // 最大连接数
+  int64 max_open_conn = 4;
+  // 连接空闲超时参数
+  google.protobuf.Duration conn_max_lifetime = 5;
+}
+message Redis {
+  string network = 1;
+  string addr = 2;
+  string password = 3;
+  int32 db = 4;
+  google.protobuf.Duration dial_timeout = 5;
+  google.protobuf.Duration read_timeout = 6;
+  google.protobuf.Duration write_timeout = 7;
+}
+
+message Data {
+  Database database = 1;
+  Redis redis = 2;
 }
