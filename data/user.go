@@ -168,7 +168,7 @@ func ParseJWT(tokenString string) error {
 		return errors.Wrap(err, "GetExpirationTime from token error")
 	}
 
-	if time.Until(exp.Time) > 0 {
+	if time.Until(exp.Time) < 0 {
 		return errors.New("the token expires")
 	}
 

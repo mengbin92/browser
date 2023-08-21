@@ -57,17 +57,20 @@ func basicAuth(ctx *gin.Context) {
 		srvLogger.Error("basic auth failed")
 		ctx.JSON(http.StatusForbidden, gin.H{"code": http.StatusForbidden, "msg": "basic auth failed"})
 		ctx.Abort()
+		return
 	}
 	user, err := data.GetUserByName(name)
 	if err != nil {
 		srvLogger.Errorf("GetUserByName error: %s", err.Error())
 		ctx.JSON(http.StatusForbidden, gin.H{"code": http.StatusForbidden, "msg": err.Error()})
 		ctx.Abort()
+		return
 	}
 	if utils.CalcPassword(pwd, user.Salt) != user.Password {
 		srvLogger.Error("user name or password is incorrect")
 		ctx.JSON(http.StatusForbidden, gin.H{"code": http.StatusForbidden, "msg": "user name or password is incorrect"})
 		ctx.Abort()
+		return
 	}
 	ctx.Next()
 }
@@ -77,6 +80,7 @@ func tokenAuth(ctx *gin.Context) {
 		srvLogger.Errorf("tokenAuth error: %s", err.Error())
 		ctx.JSON(http.StatusForbidden, gin.H{"code": http.StatusForbidden, "msg": "token auth failed"})
 		ctx.Abort()
+		return
 	}
 	ctx.Next()
 }
