@@ -41,6 +41,12 @@ func (s *Server) Routers() []*Router {
 			Handler:  login,
 		},
 		{
+			Path:     "/refresh",
+			Method:   http.MethodGet,
+			AuthType: config.Server_TOKENAUTH,
+			Handler:  refresh,
+		},
+		{
 			Path:     "/register",
 			Method:   http.MethodPost,
 			AuthType: config.Server_NOAUTH,

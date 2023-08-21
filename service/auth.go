@@ -11,7 +11,7 @@ import (
 
 type Login struct {
 	Name     string `form:"name"`
-	Password string	`form:"password"`
+	Password string `form:"password"`
 }
 
 func login(ctx *gin.Context) {
@@ -41,6 +41,25 @@ func register(ctx *gin.Context) {
 	resp, err := data.RegisterUser(login.Name, login.Password)
 	if err != nil {
 		srvLogger.Errorf("register user: %s error: %s", login.Name, err.Error())
+		ctx.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "msg": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "data": resp})
+}
+
+func refresh(ctx *gin.Context) {
+	token := strings.Split(ctx.Request.Header.Get("Authorization"), " ")[1]
+
+	id, err := data.GetIDFromeToken(token)
+	if err != nil {
+		srvLogger.Errorf("GetIDFromeToken error: %s", err.Error())
+		ctx.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "msg": err.Error()})
+		return
+	}
+
+	resp, err := data.RefreshToken(uint(id))
+	if err != nil {
+		srvLogger.Errorf("RefreshToken user with id: %d error: %s", id, err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"code": http.StatusBadRequest, "msg": err.Error()})
 		return
 	}

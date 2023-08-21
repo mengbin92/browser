@@ -183,3 +183,22 @@ func ParseJWT(tokenString string) error {
 	}
 	return nil
 }
+
+func GetIDFromeToken(tokenString string) (int, error) {
+	token, err := jwtv5.Parse(tokenString, func(token *jwtv5.Token) (interface{}, error) {
+		return securityKey, nil
+	})
+	if err != nil {
+		return 0, errors.Wrap(err, "new token parse function error")
+	}
+	// 验证 JWT 的有效性
+	if !token.Valid {
+		return 0, errors.New("invalid token")
+	}
+	claims, ok := token.Claims.(jwtv5.MapClaims)
+	if !ok {
+		return 0, fmt.Errorf("invalid claims")
+	}
+	return strconv.Atoi(claims["sub"].(string))
+
+}
