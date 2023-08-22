@@ -5,11 +5,16 @@ server:
   grpc:
     addr: 0.0.0.0:9000
     timeout: 1s
+  auth_type: 2
+  auth:
+    jwt_secret: testKey
+    expire: 1800s
 data:
   database:
     driver: mysql
-    source: root:root@tcp(127.0.0.1:3306)/test
+    source: root:Hvrg(CPVYUf^V+Qv@tcp(127.0.0.1:3306)/localdb
   redis:
     addr: 127.0.0.1:6379
+    password: foobared
     read_timeout: 0.2s
     write_timeout: 0.2s

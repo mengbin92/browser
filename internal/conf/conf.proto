@@ -84,6 +84,4 @@ message Auth {
   string jwt_secret = 1;
   // token过期时间
   google.protobuf.Duration expire = 2;
-  // 2: no auth; 1: basic auth; default: 0, token auth
-  int32 auth_type = 3;
 }
