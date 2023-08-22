@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package browser.api;
+
+option go_package = "mengbin92/browser/internal/conf;conf";
+
+import "google/protobuf/duration.proto";
+
+message Bootstrap {
+  Server server = 1;
+  Log log = 2;
+  Data data = 3;
+}
+
+message Server {
+  message HTTP {
+    string network = 1;
+    string addr = 2;
+    google.protobuf.Duration timeout = 3;
+  }
+  message GRPC {
+    string network = 1;
+    string addr = 2;
+    google.protobuf.Duration timeout = 3;
+  }
+  enum AuthType{
+    TOKENAUTH = 0;
+    BASICAUTH = 1;
+    NOAUTH = 2;
+  }
+  HTTP http = 1;
+  GRPC grpc = 2;
+  TLS tls = 3;
+  // 2: no auth; 1: basic auth; default: 0, token auth
+  AuthType auth_type = 4;
+  Auth auth = 5;
+}
+
+message TLS {
+  // 是否启用tls
+  bool enbale = 1;
+  // 证书路径
+  string cert = 2;
+  // 对应私钥路径
+  string key = 3;
+}
+
+message Log {
+  // 日志级别设置
+  // 支持debug(-1)、info(0)、warn(1)、error(2)、dpanic(3)、panic(4)、fatal(5)
+  int32 level = 1;
+  // 日志输出格式，支持json or console
+  string format = 2;
+}
+
+message Database {
+  // 数据库类型：mysql、sqlite3、postgres
+  string driver = 1;
+  string source = 2;
+  // 最大空闲连接数
+  int64 max_idle_conn = 3;
+  // 最大连接数
+  int64 max_open_conn = 4;
+  // 连接空闲超时参数
+  google.protobuf.Duration conn_max_lifetime = 5;
+}
+message Redis {
+  string network = 1;
+  string addr = 2;
+  string password = 3;
+  int32 db = 4;
+  google.protobuf.Duration dial_timeout = 5;
+  google.protobuf.Duration read_timeout = 6;
+  google.protobuf.Duration write_timeout = 7;
+}
+
+message Data {
+  Database database = 1;
+  Redis redis = 2;
+}
+
+message Auth {
+  // jwt 秘钥，暂未启用
+  string jwt_secret = 1;
+  // token过期时间
+  google.protobuf.Duration expire = 2;
+  // 2: no auth; 1: basic auth; default: 0, token auth
+  int32 auth_type = 3;
+}

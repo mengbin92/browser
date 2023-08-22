@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package api.browser.v1;
+
+option go_package = "mengbin92/browser/api/browser/v1;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+
+service Browser {
+  rpc GetToken(Login) returns (LoginResponse) {
+    option (google.api.http) = {
+      post : "/v1/user/login"
+      body : "*"
+    };
+  };
+  rpc Regisger(Login) returns (LoginResponse) {
+    option (google.api.http) = {
+      post : "/v1/user/register"
+      body : "*"
+    };
+  };
+  rpc RefreshToken(RefreshRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      get : "/v1/user/refresh/{id}"
+    };
+  };
+}
+
+message User {
+  uint64 id = 1;
+  string name = 2;
+  string password = 3;
+  string salt = 4;
+  google.protobuf.Timestamp create_at = 5;
+  google.protobuf.Timestamp update_at = 6;
+  google.protobuf.Timestamp delete_at = 7;
+}
+
+message LoginResponse {
+  string token = 1;
+  int64 expire = 2;
+  uint64 id = 3;
+  string username = 4;
+}
+
+message Login {
+  string username = 1;
+  string password = 2;
+}
+
+message RefreshRequest { uint32 id = 1; }

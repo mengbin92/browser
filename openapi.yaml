@@ -1,0 +1,87 @@
+# Generated with protoc-gen-openapi
+# https://github.com/google/gnostic/tree/master/cmd/protoc-gen-openapi
+
+openapi: 3.0.3
+info:
+    title: Browser API
+    version: 0.0.1
+paths:
+    /v1/user/login:
+        post:
+            tags:
+                - Browser
+            operationId: Browser_GetToken
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/api.browser.v1.Login'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.browser.v1.LoginResponse'
+    /v1/user/refresh/{id}:
+        get:
+            tags:
+                - Browser
+            operationId: Browser_RefreshToken
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: integer
+                    format: uint32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.browser.v1.LoginResponse'
+    /v1/user/register:
+        post:
+            tags:
+                - Browser
+            operationId: Browser_Regisger
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/api.browser.v1.Login'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.browser.v1.LoginResponse'
+components:
+    schemas:
+        api.browser.v1.Login:
+            type: object
+            properties:
+                username:
+                    type: string
+                password:
+                    type: string
+        api.browser.v1.LoginResponse:
+            type: object
+            properties:
+                token:
+                    type: string
+                expire:
+                    type: integer
+                    format: int64
+                id:
+                    type: integer
+                    format: uint64
+                username:
+                    type: string
+tags:
+    - name: Browser
