@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package api.browser.v1;
+
+option go_package = "mengbin92/browser/api/browser/v1;v1";
+
+import "google/api/annotations.proto";
+
+service Block {
+  rpc UpChaincode(UploadRequest) returns (UploadResponse) {
+    option (google.api.http) = {
+      post : "/v1/block/up"
+      body : "*"
+    };
+  };
+  rpc ParseBlock(ParseRequest) returns (ParseResponse) {
+    option (google.api.http) = {
+      post : "/v1/block/parse"
+      body : "*"
+    };
+  }
+}
+
+message UploadRequest {
+  string name = 1;
+  bytes content = 2;
+}
+
+message UploadResponse {
+  bool result = 1;
+  string name = 2;
+}
+
+message ParseRequest {
+  enum BlockOperation {
+    BLOCK = 0;
+    HEADER = 1;
+    DATA = 2;
+    CONFIG = 3;
+    CHAINCODE = 4;
+    ACTIONS = 5;
+    TRANSACTION = 6;
+    INPUT = 7;
+    RWSET = 8;
+    CHANNEL = 9;
+    ENDORSEMENTS = 10;
+    CREATOR = 11;
+    METADATA = 12;
+  }
+  string name = 1;
+  BlockOperation operation = 2;
+}
+
+message ParseResponse { bytes data = 1; }
+
+message Endorser {
+  string MSP = 1;
+  string Name = 2;
+}
+message Endorsers { repeated Endorser endorsers = 1; }

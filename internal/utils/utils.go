@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/sha512"
 	"encoding/hex"
+	"fmt"
 )
 
 func CalcPassword(pass, salt string) string {
@@ -28,4 +29,8 @@ func CalcSha384Hash(in []byte) ([]byte, error) {
 	}
 
 	return sha.Sum([]byte(nil)), nil
+}
+
+func Fullname(pbFile string) string {
+	return fmt.Sprintf("./pb/%s.pb", pbFile)
 }

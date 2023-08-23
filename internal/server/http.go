@@ -14,7 +14,7 @@ import (
 )
 
 // NewHTTPServer new an HTTP server.
-func NewHTTPServer(c *conf.Server, greeter *service.BrowserService, logger log.Logger) *http.Server {
+func NewHTTPServer(c *conf.Server, browser *service.BrowserService, block *service.BlockService, logger log.Logger) *http.Server {
 	var opts = []http.ServerOption{
 		http.Middleware(
 			recovery.Recovery(),
@@ -33,6 +33,7 @@ func NewHTTPServer(c *conf.Server, greeter *service.BrowserService, logger log.L
 		opts = append(opts, http.Timeout(c.Http.Timeout.AsDuration()))
 	}
 	srv := http.NewServer(opts...)
-	v1.RegisterBrowserHTTPServer(srv, greeter)
+	v1.RegisterBrowserHTTPServer(srv, browser)
+	v1.RegisterBlockHTTPServer(srv, block)
 	return srv
 }

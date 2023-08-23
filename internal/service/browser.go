@@ -6,7 +6,7 @@ import (
 	pb "mengbin92/browser/api/browser/v1"
 	"mengbin92/browser/internal/biz"
 
-	"github.com/go-kratos/kratos/v2/log"
+	klog "github.com/go-kratos/kratos/v2/log"
 )
 
 type BrowserService struct {
@@ -14,7 +14,8 @@ type BrowserService struct {
 	pb.UnimplementedBrowserServer
 }
 
-func NewBrowserService(repo *biz.AccountUsecase, logger log.Logger) *BrowserService {
+func NewBrowserService(repo *biz.AccountUsecase, logger klog.Logger) *BrowserService {
+	log = klog.NewHelper(logger)
 	return &BrowserService{
 		account: repo,
 	}

@@ -3,9 +3,45 @@
 
 openapi: 3.0.3
 info:
-    title: Browser API
+    title: ""
     version: 0.0.1
 paths:
+    /v1/block/parse:
+        post:
+            tags:
+                - Block
+            operationId: Block_ParseBlock
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/api.browser.v1.ParseRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.browser.v1.ParseResponse'
+    /v1/block/up:
+        post:
+            tags:
+                - Block
+            operationId: Block_UpChaincode
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/api.browser.v1.UploadRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/api.browser.v1.UploadResponse'
     /v1/user/login:
         post:
             tags:
@@ -83,5 +119,35 @@ components:
                     format: uint64
                 username:
                     type: string
+        api.browser.v1.ParseRequest:
+            type: object
+            properties:
+                name:
+                    type: string
+                operation:
+                    type: integer
+                    format: enum
+        api.browser.v1.ParseResponse:
+            type: object
+            properties:
+                data:
+                    type: string
+                    format: bytes
+        api.browser.v1.UploadRequest:
+            type: object
+            properties:
+                name:
+                    type: string
+                content:
+                    type: string
+                    format: bytes
+        api.browser.v1.UploadResponse:
+            type: object
+            properties:
+                result:
+                    type: boolean
+                name:
+                    type: string
 tags:
+    - name: Block
     - name: Browser
