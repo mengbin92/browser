@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-kratos/kratos/v2/log"
-	jwtv5 "github.com/golang-jwt/jwt/v5"
+	jwtv4 "github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
@@ -138,11 +138,11 @@ func (ar *AccountRepo) getUserById(ctx context.Context, id uint32) (*User, error
 }
 
 func (ar *AccountRepo) genToken(id uint32, now time.Time) (string, error) {
-	claims := &jwtv5.RegisteredClaims{
-		ExpiresAt: jwtv5.NewNumericDate(now.Add(ar.expire)),
+	claims := &jwtv4.RegisteredClaims{
+		ExpiresAt: jwtv4.NewNumericDate(now.Add(ar.expire)),
 		Issuer:    "browser",
 		Subject:   fmt.Sprintf("%d", id),
 	}
-	token := jwtv5.NewWithClaims(jwtv5.SigningMethodHS256, claims)
+	token := jwtv4.NewWithClaims(jwtv4.SigningMethodHS256, claims)
 	return token.SignedString([]byte(ar.jwtSecret))
 }
