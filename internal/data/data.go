@@ -55,5 +55,5 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 			log.Error(err)
 		}
 	}
-	return &Data{}, cleanup, nil
+	return d, cleanup, nil
 }

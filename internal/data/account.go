@@ -15,6 +15,16 @@ import (
 	"github.com/pkg/errors"
 )
 
+type User struct {
+	ID        uint       `json:"id" gorm:"primary_key"`
+	Name      string     `json:"name" gorm:"type:varchar(100);not null"`
+	Password  string     `json:"-" gorm:"type:varchar(100)"`
+	Salt      string     `json:"-"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `json:"-" sql:"index"`
+}
+
 type AccountRepo struct {
 	data      *Data
 	log       *log.Helper
@@ -38,7 +48,7 @@ func genSalt() string {
 
 func (ar *AccountRepo) Register(ctx context.Context, username, password string) (*v1.LoginResponse, error) {
 	salt := genSalt()
-	u := &v1.User{
+	u := &User{
 		Name:     username,
 		Password: utils.CalcPassword(password, salt),
 		Salt:     salt,
@@ -49,7 +59,7 @@ func (ar *AccountRepo) Register(ctx context.Context, username, password string) 
 	}
 
 	now := time.Now()
-	tokenString, err := ar.genToken(uint32(u.Id), now)
+	tokenString, err := ar.genToken(uint32(u.ID), now)
 	if err != nil {
 		ar.log.Errorf("create token error: %s", err.Error())
 		return nil, errors.Wrap(err, "create token error")
@@ -58,7 +68,7 @@ func (ar *AccountRepo) Register(ctx context.Context, username, password string) 
 	return &v1.LoginResponse{
 		Token:    tokenString,
 		Expire:   now.Add(ar.expire).Unix(),
-		Id:       u.Id,
+		Id:       uint64(u.ID),
 		Username: u.Name,
 	}, nil
 }
@@ -74,7 +84,7 @@ func (ar *AccountRepo) Login(ctx context.Context, username, password string) (*v
 		return nil, errors.New("user name or password is incorrect")
 	}
 	now := time.Now()
-	tokenString, err := ar.genToken(uint32(user.Id), now)
+	tokenString, err := ar.genToken(uint32(user.ID), now)
 	if err != nil {
 		ar.log.Errorf("create token error: %s", err.Error())
 		return nil, errors.Wrap(err, "create token error")
@@ -83,7 +93,7 @@ func (ar *AccountRepo) Login(ctx context.Context, username, password string) (*v
 	return &v1.LoginResponse{
 		Token:    tokenString,
 		Expire:   now.Add(ar.expire).Unix(),
-		Id:       user.Id,
+		Id:       uint64(user.ID),
 		Username: user.Name,
 	}, nil
 }
@@ -95,7 +105,7 @@ func (ar *AccountRepo) RefreshToken(ctx context.Context, id uint32) (*v1.LoginRe
 	}
 
 	now := time.Now()
-	tokenString, err := ar.genToken(uint32(user.Id), now)
+	tokenString, err := ar.genToken(uint32(user.ID), now)
 	if err != nil {
 		ar.log.Errorf("create token error: %s", err.Error())
 		return nil, errors.Wrap(err, "create token error")
@@ -104,24 +114,24 @@ func (ar *AccountRepo) RefreshToken(ctx context.Context, id uint32) (*v1.LoginRe
 	return &v1.LoginResponse{
 		Token:    tokenString,
 		Expire:   now.Add(ar.expire).Unix(),
-		Id:       user.Id,
+		Id:       uint64(user.ID),
 		Username: user.Name,
 	}, nil
 }
 
-func (ar *AccountRepo) getUserByName(ctx context.Context, name string) (*v1.User, error) {
-	user := &v1.User{}
+func (ar *AccountRepo) getUserByName(ctx context.Context, name string) (*User, error) {
+	user := &User{}
 	ar.data.db.First(user, "name = ?", name)
-	if user.Id == 0 {
+	if user.ID == 0 {
 		return nil, fmt.Errorf("user with name: %s is not found", name)
 	}
 	return user, nil
 }
 
-func (ar *AccountRepo) getUserById(ctx context.Context, id uint32) (*v1.User, error) {
-	user := &v1.User{}
+func (ar *AccountRepo) getUserById(ctx context.Context, id uint32) (*User, error) {
+	user := &User{}
 	ar.data.db.First(user, "id = ?", id)
-	if user.Id == 0 {
+	if user.ID == 0 {
 		return nil, fmt.Errorf("user with id: %d is not found", id)
 	}
 	return user, nil
@@ -134,5 +144,5 @@ func (ar *AccountRepo) genToken(id uint32, now time.Time) (string, error) {
 		Subject:   fmt.Sprintf("%d", id),
 	}
 	token := jwtv5.NewWithClaims(jwtv5.SigningMethodHS256, claims)
-	return token.SignedString(ar.jwtSecret)
+	return token.SignedString([]byte(ar.jwtSecret))
 }

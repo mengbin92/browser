@@ -12,7 +12,7 @@ server:
 data:
   database:
     driver: mysql
-    source: root:Hvrg(CPVYUf^V+Qv@tcp(127.0.0.1:3306)/localdb
+    source: root:Hvrg(CPVYUf^V+Qv@tcp(127.0.0.1:3306)/localdb?charset=utf8mb4&parseTime=True&loc=Local
   redis:
     addr: 127.0.0.1:6379
     password: foobared
