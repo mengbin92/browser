@@ -30,7 +30,7 @@ type BlockHTTPServer interface {
 func RegisterBlockHTTPServer(s *http.Server, srv BlockHTTPServer) {
 	r := s.Route("/")
 	r.POST("/v1/block/up", _Block_UpChaincode0_HTTP_Handler(srv))
-	r.POST("/v1/block/parse", _Block_ParseBlock0_HTTP_Handler(srv))
+	r.GET("/v1/block/parse", _Block_ParseBlock0_HTTP_Handler(srv))
 }
 
 func _Block_UpChaincode0_HTTP_Handler(srv BlockHTTPServer) func(ctx http.Context) error {
@@ -58,9 +58,6 @@ func _Block_UpChaincode0_HTTP_Handler(srv BlockHTTPServer) func(ctx http.Context
 func _Block_ParseBlock0_HTTP_Handler(srv BlockHTTPServer) func(ctx http.Context) error {
 	return func(ctx http.Context) error {
 		var in ParseRequest
-		if err := ctx.Bind(&in); err != nil {
-			return err
-		}
 		if err := ctx.BindQuery(&in); err != nil {
 			return err
 		}
@@ -93,10 +90,10 @@ func NewBlockHTTPClient(client *http.Client) BlockHTTPClient {
 func (c *BlockHTTPClientImpl) ParseBlock(ctx context.Context, in *ParseRequest, opts ...http.CallOption) (*ParseResponse, error) {
 	var out ParseResponse
 	pattern := "/v1/block/parse"
-	path := binding.EncodeURL(pattern, in, false)
+	path := binding.EncodeURL(pattern, in, true)
 	opts = append(opts, http.Operation(OperationBlockParseBlock))
 	opts = append(opts, http.PathTemplate(pattern))
-	err := c.cc.Invoke(ctx, "POST", path, in, &out, opts...)
+	err := c.cc.Invoke(ctx, "GET", path, nil, &out, opts...)
 	if err != nil {
 		return nil, err
 	}

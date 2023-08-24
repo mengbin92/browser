@@ -7,16 +7,20 @@ info:
     version: 0.0.1
 paths:
     /v1/block/parse:
-        post:
+        get:
             tags:
                 - Block
             operationId: Block_ParseBlock
-            requestBody:
-                content:
-                    application/json:
-                        schema:
-                            $ref: '#/components/schemas/api.browser.v1.ParseRequest'
-                required: true
+            parameters:
+                - name: name
+                  in: query
+                  schema:
+                    type: string
+                - name: operation
+                  in: query
+                  schema:
+                    type: integer
+                    format: enum
             responses:
                 "200":
                     description: OK
@@ -119,14 +123,6 @@ components:
                     format: uint64
                 username:
                     type: string
-        api.browser.v1.ParseRequest:
-            type: object
-            properties:
-                name:
-                    type: string
-                operation:
-                    type: integer
-                    format: enum
         api.browser.v1.ParseResponse:
             type: object
             properties:

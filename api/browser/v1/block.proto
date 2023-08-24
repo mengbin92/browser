@@ -15,8 +15,7 @@ service Block {
   };
   rpc ParseBlock(ParseRequest) returns (ParseResponse) {
     option (google.api.http) = {
-      post : "/v1/block/parse"
-      body : "*"
+      get : "/v1/block/parse"
     };
   }
 }
