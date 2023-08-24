@@ -13,6 +13,7 @@ import (
 	jwtv4 "github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type User struct {
@@ -59,7 +60,7 @@ func (ar *AccountRepo) Register(ctx context.Context, username, password string) 
 	}
 
 	now := time.Now()
-	tokenString, err := ar.genToken(uint32(u.ID), now)
+	tokenString, err := ar.genToken(uint64(u.ID), now)
 	if err != nil {
 		ar.log.Errorf("create token error: %s", err.Error())
 		return nil, errors.Wrap(err, "create token error")
@@ -84,7 +85,7 @@ func (ar *AccountRepo) Login(ctx context.Context, username, password string) (*v
 		return nil, errors.New("user name or password is incorrect")
 	}
 	now := time.Now()
-	tokenString, err := ar.genToken(uint32(user.ID), now)
+	tokenString, err := ar.genToken(user.Id, now)
 	if err != nil {
 		ar.log.Errorf("create token error: %s", err.Error())
 		return nil, errors.Wrap(err, "create token error")
@@ -93,11 +94,11 @@ func (ar *AccountRepo) Login(ctx context.Context, username, password string) (*v
 	return &v1.LoginResponse{
 		Token:    tokenString,
 		Expire:   now.Add(ar.expire).Unix(),
-		Id:       uint64(user.ID),
+		Id:       user.Id,
 		Username: user.Name,
 	}, nil
 }
-func (ar *AccountRepo) RefreshToken(ctx context.Context, id uint32) (*v1.LoginResponse, error) {
+func (ar *AccountRepo) RefreshToken(ctx context.Context, id uint64) (*v1.LoginResponse, error) {
 	user, err := ar.getUserById(ctx, id)
 	if err != nil {
 		ar.log.Errorf("get user from data error: %s", err.Error())
@@ -105,7 +106,7 @@ func (ar *AccountRepo) RefreshToken(ctx context.Context, id uint32) (*v1.LoginRe
 	}
 
 	now := time.Now()
-	tokenString, err := ar.genToken(uint32(user.ID), now)
+	tokenString, err := ar.genToken(user.Id, now)
 	if err != nil {
 		ar.log.Errorf("create token error: %s", err.Error())
 		return nil, errors.Wrap(err, "create token error")
@@ -114,30 +115,30 @@ func (ar *AccountRepo) RefreshToken(ctx context.Context, id uint32) (*v1.LoginRe
 	return &v1.LoginResponse{
 		Token:    tokenString,
 		Expire:   now.Add(ar.expire).Unix(),
-		Id:       uint64(user.ID),
+		Id:       user.Id,
 		Username: user.Name,
 	}, nil
 }
 
-func (ar *AccountRepo) getUserByName(ctx context.Context, name string) (*User, error) {
+func (ar *AccountRepo) getUserByName(ctx context.Context, name string) (*v1.User, error) {
 	user := &User{}
 	ar.data.db.First(user, "name = ?", name)
 	if user.ID == 0 {
 		return nil, fmt.Errorf("user with name: %s is not found", name)
 	}
-	return user, nil
+	return user.db2pb(), nil
 }
 
-func (ar *AccountRepo) getUserById(ctx context.Context, id uint32) (*User, error) {
+func (ar *AccountRepo) getUserById(ctx context.Context, id uint64) (*v1.User, error) {
 	user := &User{}
 	ar.data.db.First(user, "id = ?", id)
 	if user.ID == 0 {
 		return nil, fmt.Errorf("user with id: %d is not found", id)
 	}
-	return user, nil
+	return user.db2pb(), nil
 }
 
-func (ar *AccountRepo) genToken(id uint32, now time.Time) (string, error) {
+func (ar *AccountRepo) genToken(id uint64, now time.Time) (string, error) {
 	claims := &jwtv4.RegisteredClaims{
 		ExpiresAt: jwtv4.NewNumericDate(now.Add(ar.expire)),
 		Issuer:    "browser",
@@ -145,4 +146,23 @@ func (ar *AccountRepo) genToken(id uint32, now time.Time) (string, error) {
 	}
 	token := jwtv4.NewWithClaims(jwtv4.SigningMethodHS256, claims)
 	return token.SignedString([]byte(ar.jwtSecret))
+}
+
+func (u *User) db2pb() *v1.User {
+	createdAt := timestamppb.New(u.CreatedAt)
+	updatedAt := timestamppb.New(u.UpdatedAt)
+	var deletedAt *timestamppb.Timestamp
+	if u.DeletedAt != nil {
+		deletedAt = timestamppb.New(*u.DeletedAt)
+	}
+
+	return &v1.User{
+		Id:       uint64(u.ID),
+		Name:     u.Name,
+		Password: u.Password,
+		Salt:     u.Salt,
+		CreateAt: createdAt,
+		DeleteAt: deletedAt,
+		UpdateAt: updatedAt,
+	}
 }

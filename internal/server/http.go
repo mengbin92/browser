@@ -6,11 +6,8 @@ import (
 	"mengbin92/browser/internal/service"
 
 	"github.com/go-kratos/kratos/v2/log"
-	"github.com/go-kratos/kratos/v2/middleware/auth/jwt"
 	"github.com/go-kratos/kratos/v2/middleware/recovery"
 	"github.com/go-kratos/kratos/v2/transport/http"
-
-	jwtv4 "github.com/golang-jwt/jwt/v4"
 )
 
 // NewHTTPServer new an HTTP server.
@@ -18,9 +15,9 @@ func NewHTTPServer(c *conf.Server, browser *service.BrowserService, block *servi
 	var opts = []http.ServerOption{
 		http.Middleware(
 			recovery.Recovery(),
-			jwt.Server(func(token *jwtv4.Token) (interface{}, error) {
-				return []byte(c.Auth.JwtSecret), nil
-			}),
+			// jwt.Server(func(token *jwtv4.Token) (interface{}, error) {
+			// 	return []byte(c.Auth.JwtSecret), nil
+			// }),
 		),
 	}
 	if c.Http.Network != "" {

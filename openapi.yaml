@@ -71,7 +71,7 @@ paths:
                   required: true
                   schema:
                     type: integer
-                    format: uint32
+                    format: uint64
             responses:
                 "200":
                     description: OK

@@ -49,4 +49,4 @@ message Login {
   string password = 2;
 }
 
-message RefreshRequest { uint32 id = 1; }
+message RefreshRequest { uint64 id = 1; }

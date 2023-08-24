@@ -55,5 +55,7 @@ func NewData(c *conf.Data, logger log.Logger) (*Data, func(), error) {
 			log.Error(err)
 		}
 	}
+
+	d.db.AutoMigrate(&User{})
 	return d, cleanup, nil
 }
